@@ -9,6 +9,7 @@ import (
 
 	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	ciliumclientset "github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -56,7 +57,7 @@ func main() {
 		// Create the CiliumIdentity in Kubernetes
 
 		_, err = clientset.CiliumV2().CiliumIdentities().Create(ctx, ciliumIdentity, metav1.CreateOptions{})
-		if err != nil {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			panic(err.Error())
 		}
 
