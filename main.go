@@ -34,6 +34,9 @@ func main() {
 		panic(err.Error())
 	}
 
+	config.QPS = 100
+	config.Burst = 200
+
 	// Create Cilium clientset
 	clientset, err := ciliumclientset.NewForConfig(config)
 	if err != nil {
@@ -50,6 +53,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			// Generate random labels and security labels
 			labels := generateRandomLabels()
 			securityLabels := generateRandomSecurityLabels()
@@ -113,7 +117,7 @@ func main() {
 
 			// Create the CiliumEndpoint in Kubernetes
 			_, err = clientset.CiliumV2().CiliumEndpoints(namespace).Create(ctx, ciliumEndpoint, metav1.CreateOptions{})
-			if err != nil {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				panic(err.Error())
 			}
 
