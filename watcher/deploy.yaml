@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cidwatcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cidwatcher
+  template:
+    metadata:
+      labels:
+        app: cidwatcher
+    spec:
+      serviceAccountName: cidwatcher-sa
+      containers:
+      - name: cidwatcher
+        image: paulgmiller/cidwatcher
+        imagePullPolicy: IfNotPresent
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cidwatcher-sa
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: cidwatcher-role
+rules:
+- apiGroups: ["cilium.io"]
+  resources: ["ciliumidentities"]
+  verbs: ["list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cidwatcher-rolebinding
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: cidwatcher-sa
+  namespace: default
+roleRef:
+  kind: Role
+  name: cidwatcher-role
+  apiGroup: rbac.authorization.k8s.io

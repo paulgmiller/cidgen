@@ -24,6 +24,7 @@ func main() {
 	// Parse kubeconfig flag
 	kubeconfig := flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	count := flag.Int("count", 100, "number of identites")
+	createEndpoints := flag.Bool("endpoints", false, "create endpoints too?")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -78,51 +79,51 @@ func main() {
 			}
 
 			fmt.Printf("Created CiliumIdentity with ID: %d\n", identityID)
+			if *createEndpoints {
+				// Generate random namespace and pod name
+				namespace := fmt.Sprintf("namespace-%d", rand.Intn(100))
+				podName := fmt.Sprintf("pod-%d", rand.Intn(10000))
 
-			// Generate random namespace and pod name
-			namespace := fmt.Sprintf("namespace-%d", rand.Intn(100))
-			podName := fmt.Sprintf("pod-%d", rand.Intn(10000))
-
-			_, err = kubeClientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: namespace,
-				},
-			}, metav1.CreateOptions{})
-			if err != nil && !apierrors.IsAlreadyExists(err) {
-				panic(fmt.Errorf("failed to create namespace '%s': %v", namespace, err))
-			}
-
-			// Create a new CiliumEndpoint object
-			ciliumEndpoint := &ciliumv2.CiliumEndpoint{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: namespace,
-					Labels:    map[string]string{"paultest": "true"},
-				},
-				Status: ciliumv2.EndpointStatus{
-					Identity: &ciliumv2.EndpointIdentity{
-						ID:     int64(identityID),
-						Labels: flattenlabels(securityLabels),
+				_, err = kubeClientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: namespace,
 					},
-					Networking: &ciliumv2.EndpointNetworking{
-						Addressing: []*ciliumv2.AddressPair{
-							{
-								IPV4: generateRandomIPv4(),
-								IPV6: generateRandomIPv6(),
+				}, metav1.CreateOptions{})
+				if err != nil && !apierrors.IsAlreadyExists(err) {
+					panic(fmt.Errorf("failed to create namespace '%s': %v", namespace, err))
+				}
+
+				// Create a new CiliumEndpoint object
+				ciliumEndpoint := &ciliumv2.CiliumEndpoint{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      podName,
+						Namespace: namespace,
+						Labels:    map[string]string{"paultest": "true"},
+					},
+					Status: ciliumv2.EndpointStatus{
+						Identity: &ciliumv2.EndpointIdentity{
+							ID:     int64(identityID),
+							Labels: flattenlabels(securityLabels),
+						},
+						Networking: &ciliumv2.EndpointNetworking{
+							Addressing: []*ciliumv2.AddressPair{
+								{
+									IPV4: generateRandomIPv4(),
+									IPV6: generateRandomIPv6(),
+								},
 							},
 						},
 					},
-				},
+				}
+
+				// Create the CiliumEndpoint in Kubernetes
+				_, err = clientset.CiliumV2().CiliumEndpoints(namespace).Create(ctx, ciliumEndpoint, metav1.CreateOptions{})
+				if err != nil && !apierrors.IsAlreadyExists(err) {
+					panic(err.Error())
+				}
+
+				fmt.Printf("Created CiliumEndpoint for Pod '%s' in Namespace '%s'\n", podName, namespace)
 			}
-
-			// Create the CiliumEndpoint in Kubernetes
-			_, err = clientset.CiliumV2().CiliumEndpoints(namespace).Create(ctx, ciliumEndpoint, metav1.CreateOptions{})
-			if err != nil && !apierrors.IsAlreadyExists(err) {
-				panic(err.Error())
-			}
-
-			fmt.Printf("Created CiliumEndpoint for Pod '%s' in Namespace '%s'\n", podName, namespace)
-
 		}()
 	}
 	wg.Wait()
