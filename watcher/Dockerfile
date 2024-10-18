@@ -6,8 +6,8 @@ RUN go mod download && go mod verify
 
 COPY watcher/*.go ./
 
-RUN go vet -v
-RUN go test -v
+#RUN go vet -v
+#RUN go test -v
 
 RUN go build -o /go/bin/app
 

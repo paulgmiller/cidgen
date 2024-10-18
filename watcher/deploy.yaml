@@ -15,8 +15,11 @@ spec:
       serviceAccountName: cidwatcher-sa
       containers:
       - name: cidwatcher
-        image: paulgmiller/cidwatcher
+        image: paulgmiller/cidwatcher:v6
         imagePullPolicy: IfNotPresent
+        env: 
+        - name: GOMEMLIMIT
+          value: 200MiB
 
 ---
 apiVersion: v1
@@ -27,10 +30,9 @@ metadata:
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  namespace: default
-  name: cidwatcher-role
+  name: cidwatcher-clusterrole
 rules:
 - apiGroups: ["cilium.io"]
   resources: ["ciliumidentities"]
@@ -38,15 +40,14 @@ rules:
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: cidwatcher-rolebinding
-  namespace: default
+  name: cidwatcher-clusterrolebinding
 subjects:
 - kind: ServiceAccount
   name: cidwatcher-sa
   namespace: default
 roleRef:
-  kind: Role
-  name: cidwatcher-role
+  kind: ClusterRole
+  name: cidwatcher-clusterrole
   apiGroup: rbac.authorization.k8s.io
